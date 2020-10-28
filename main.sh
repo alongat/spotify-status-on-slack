@@ -2,7 +2,18 @@
 
 # Spotify legacy token
 
-LEGACY_TOKEN="YOUR_LEGACY_TOKEN"
+LEGACY_TOKEN="YOUR_TOKEN_HERE"
+LOCK="spotify.lock"
+WIFI_NAME=`/System/Library/PrivateFrameworks/Apple80211.framework/Resources/airport -I | awk -F: '/ SSID/{print $2}'`
+
+echo "$WIFI_NAME"
+
+if [[ "$WIFI_NAME" == "HOME_WIFI" ]]; then
+  DEFAULT_EMOJI=":house_with_garden:"
+else 
+  DEFAULT_EMOJI=""
+fi
+
 trap onexit INT
 
 # Helper for https://api.slack.com/methods/users.profile.set Slack API Method
@@ -14,9 +25,14 @@ function setProfile() {
 }
 
 function reset() {
+  if [ ! -f "$LOCK" ]; then
+    echo "$LOCK not exists."
+    return
+  fi
   echo 'Resetting status'
-  PAYLOAD="{ \"profile\": { \"status_text\" : \"\", \"status_emoji\" : \"\" } }"n
+  PAYLOAD="{ \"profile\": { \"status_text\" : \"\", \"status_emoji\" : \"$DEFAULT_EMOJI\" } }"n
   setProfile "$PAYLOAD"
+  rm $LOCK
 }
 
 function onexit() {
@@ -44,11 +60,12 @@ if [[ "$state" != "playing" ]]; then
   echo 'Spotify is not playing any song, exiting'
   reset
 else
-  SONG=$(getSong)
+  SONG="$(getSong|cut -c1-99)"
   echo "Detected Spotify track: $SONG"
 
-  PAYLOAD="{ \"profile\": { \"status_text\": \"$SONG\", \"status_emoji\": \":headphones:\" } }"
+  PAYLOAD="{ \"profile\": { \"status_text\": \"$SONG\", \"status_emoji\": \":heads-down:\" } }"
   setProfile "$PAYLOAD"
+  touch $LOCK
 fi
 
 echo "Done"
